@@ -150,9 +150,10 @@ body.full #slider,body.full #tl,body.full #tr{display:none}
     <p class="say">Plan the race</p>
     <p class="sub">Routes your Bavaria through 8 forecast models and shows which side of the channel they favour.</p>
   </div>
-  <div class="two">
-    <button class="btn pri" onclick="runAll()">Plan from the start</button>
-    <button class="btn" onclick="routeFromMe()">Plan from here</button>
+  
+  <button class="btn pri" onclick="planSmart()">Plan the race</button>
+  <p class="mut" id="planfrom" style="margin:6px 0 0"></p>
+  <div>
   </div>
   <div id="fcstatus" class="mut"></div>
   <div id="routeout"></div>
@@ -182,7 +183,7 @@ body.full #slider,body.full #tl,body.full #tr{display:none}
    <li>In Safari, tap aA → Website Settings → Location → Allow, then reload.</li></ol></div>
   <div id="precise" class="warn" style="display:none">Accuracy is worse than 100 m, so Precise Location is probably off. Go to Settings → Privacy &amp; Security → Location Services → Safari Websites and turn on Precise Location.</div>
 
-  <h3>Pin the start line</h3>
+  <h3>1. Pin the start line</h3>
   <p class="mut" style="margin:0">Go right next to each end and hold the phone at the bow. It averages 10 seconds of GPS.</p>
   <div class="two">
     <button class="btn dark" onclick="pingEnd('rc')">Pin committee boat</button>
@@ -191,11 +192,9 @@ body.full #slider,body.full #tl,body.full #tr{display:none}
   <div class="prog" id="pingbar" style="display:none"><i></i></div>
   <div id="pingst" class="mut"></div>
   <div id="lineinfo"></div>
-  <button class="btn pri" style="margin-top:6px" onclick="suggestStart()">Find the best spot on the line</button>
-  <div id="sugg"></div>
-
-  <details><summary>Measure the wind at the line</summary>
-    <p class="mut">The line bias uses the forecast until you measure. The most accurate way is to sail close-hauled on each tack for 10 seconds and record both.</p>
+  <h3>2. Measure the wind <span class="mut" style="font:500 15px Barlow">(optional)</span></h3>
+  <details style="border-top:0;padding-top:0"><summary style="font:600 16px Barlow" id="windstate">Using the forecast wind until you measure</summary>
+    <p class="mut">Sail close-hauled on each tack for 10 seconds and record both. That's the most accurate way. A measured wind changes the line bias, and replaces the forecast near the line for the first 45 minutes of the plan.</p>
     <div class="two">
       <button class="btn" onclick="recTack('S')">Record starboard tack</button>
       <button class="btn" onclick="recTack('P')">Record port tack</button>
@@ -207,8 +206,11 @@ body.full #slider,body.full #tl,body.full #tr{display:none}
     <div class="row">Wind from <input type="number" id="twd" min="0" max="359" onchange="setTWD(+this.value,'typed in')">° at <input type="number" id="tws" min="0" max="40" step="0.5" onchange="S.tws=+this.value;save();updLine()"> kn</div>
     <div class="row" style="margin-top:6px"><button class="btn" style="width:auto" onclick="twdFromForecast()">Use forecast</button></div>
     <div id="twdsrc" class="mut"></div>
-    <label class="chk"><input type="checkbox" id="useovr" onchange="S.useOvr=this.checked;save()"> Use my measured wind when planning the first 45 minutes</label>
   </details>
+  <h3>3. Find the best spot</h3>
+  <p class="mut" style="margin:0">Tests 11 spots along your line in every model and re-plans the race from the best one.</p>
+  <button class="btn pri" style="margin-top:8px" onclick="suggestStart()">Find the best spot and plan</button>
+  <div id="sugg"></div>
   <details><summary>Adjust the line by hand</summary>
     <div class="three">
       <button class="btn" onclick="setTap('rc')">Tap boat</button>
@@ -229,7 +231,7 @@ body.full #slider,body.full #tl,body.full #tr{display:none}
   <button class="btn" style="margin-top:10px" onclick="fetchAll(true)">Refresh forecasts</button>
   <h3>DHMZ ALADIN 2 km, Split</h3>
   <div class="row"><button class="btn" style="width:auto" onclick="alStep(-1)">−1 h</button><input type="range" id="alr" min="0" max="72" oninput="alSet(+this.value)" style="flex:1;accent-color:var(--ink)"><button class="btn" style="width:auto" onclick="alStep(1)">+1 h</button></div>
-  <p class="mut">The valid time is printed on the map. Arrows over white mean less than 7 kn. Frame <span id="alix"></span></p>
+  <p class="mut">This frame should be <b id="alix"></b>, Croatian local time. DHMZ prints local time in the map title, and the title is what counts. New runs appear about 3 h after 02, 08, 14 and 20 local, so the frame can be off by one run just after an update. Arrows over white mean under 7 kn.</p>
   <img class="al" id="alimg" alt="DHMZ ALADIN wind forecast map for the Split area">
   <h3>Windy</h3>
   <select id="wyprod" onchange="windy()"><option value="ecmwf">ECMWF</option><option value="iconEu">ICON-EU</option><option value="gfs">GFS</option></select>
@@ -383,7 +385,7 @@ function fcFromRaw(raw){const out={};let t0=null,nt=0;
 function wAt(F,ix,ws,t){let h=(t-F.t0)/36e5;if(h<0)h=0;if(h>F.nt-1)h=F.nt-1;const h0=Math.floor(h),h1=Math.min(h0+1,F.nt-1),f=h-h0;
  let u=0,v=0;for(let k=0;k<ix.length;k++){const p=ix[k],a=p*F.nt;u+=ws[k]*(F.u[a+h0]*(1-f)+F.u[a+h1]*f);v+=ws[k]*(F.v[a+h0]*(1-f)+F.v[a+h1]*f)}return [u,v]}
 function windPt(F,la,lo,t){const [ix,ws]=knn(la,lo);return wAt(F,ix,ws,t)}
-function applyOvr(u,v,la,lo,t){if(!S.useOvr||S.twd==null)return [u,v];
+function applyOvr(u,v,la,lo,t){if(!S.measured||S.twd==null)return [u,v];
  const dt=(t-S.startMs)/6e4;let wt=dt<30?1:dt<60?1-(dt-30)/30:0;if(dt<-30)wt=0;if(!wt)return [u,v];
  const st=lineMid();const dm=distM([la,lo],st)/1852;wt*=dm<1.5?1:dm<3?1-(dm-1.5)/1.5:0;if(!wt)return [u,v];
  const s=S.tws??Math.hypot(u,v),ou=s*Math.sin(S.twd*D2R),ov=s*Math.cos(S.twd*D2R);return [u*(1-wt)+ou*wt,v*(1-wt)+ov*wt]}
@@ -405,7 +407,7 @@ async function fetchAll(force){
  if(!Object.keys(raw.m).length){if(RAW){FC=fcFromRaw(RAW);st.textContent='No signal. Using the forecast saved at '+new Date(RAW.ts).toLocaleString('hr-HR')+'.';afterFC()}else st.textContent='The forecasts did not load and none are saved. Check your connection, then tap Refresh forecasts on the Wind tab.';return}
  RAW=raw;try{localStorage.setItem('mrdfc',JSON.stringify(raw))}catch(e){}
  FC=fcFromRaw(raw);st.textContent='Forecast loaded at '+fmtT(raw.ts)+'.'+(bad.length?' '+bad.join(', ')+' did not load.':'');afterFC()}
-function afterFC(){fillDisp();drawWind();windTable();if(S.twd==null||S.twdSrc.startsWith('blend'))twdFromForecast()}
+function afterFC(){fillDisp();drawWind();windTable();if(!S.measured)twdFromForecast();planNote()}
 
 // ---------- ROUTER ----------
 function makeTarget(pt,rad){const T=new Uint8Array(G.N);let any=0;for(let n=0;n<G.N;n++)if(VALID[n]&&distM([nLa(n),nLo(n)],pt)<=rad){T[n]=1;any=1}
@@ -466,8 +468,8 @@ function renderRouteTable(from,t0,legs){
  const b=ROUTES.blend;const bm=b&&b.legs[0]&&b.legs[0].eta,bf=b&&b.legs[b.legs.length-1].eta;
  const c1=call(votes.out,legs[0].name==='Mrduja'?'on the way down':'to the finish'),c2=legs.length>1?call(votes.back,'on the way back'):null;
  $('#call').innerHTML=`<p class="say">${c1||'No route found'}${c2?'.<br>'+c2+'.':''}</p>
-  <div class="eta">${legs[0].name==='Mrduja'?`<div><b>${bm?fmtT(bm):'–'}</b><span>at Mrduja</span></div>`:''}<div><b>${bf?fmtT(bf):'–'}</b><span>finish</span></div><div><b>${fmtT(t0)}</b><span>${t0===S.startMs?'start':'leave now'}</span></div></div>
-  <p class="sub">Blended forecast. The bars weight models by resolution.</p>`;
+  <div class="eta">${legs[0].name==='Mrduja'?`<div><b>${bm?fmtT(bm):'–'}</b><span>at Mrduja</span></div>`:''}<div><b>${bf?fmtT(bf):'–'}</b><span>finish</span></div><div><b>${fmtT(t0)}</b><span>${t0===S.startMs?(from===SUGG?'start, best spot':'start'):'from here'}</span></div></div>
+  <p class="sub">Times from the blended forecast. ${S.measured?'Your measured wind is used near the start. ':''}The bars weight models by resolution.</p>`;
  $('#routeout').innerHTML=(legs[0].name==='Mrduja'?`<h3>Down to Mrduja</h3>${bar(votes.out)}`:'')+(legs.length>1||legs[0].name!=='Mrduja'?`<h3>Back to Split</h3>${bar(votes.back)}`:'')+
   `<div class="legend"><span>West</span><span>East</span></div><h3>By model</h3><p class="mut" style="margin:0">Tap a model to show or hide its line on the map.</p>${rows.join('')}`}
 function routeFromMe(){if(!gps){startGPS();alert('Waiting for a GPS fix. Try again in a few seconds.');return}runAll([gps.la,gps.lo],Date.now(),S.rounded?1:0)}
@@ -515,7 +517,7 @@ function drawMarks(){markLayer.clearLayers();
  updLine()}
 let tapMode=null;
 function setTap(m){tapMode=m;const tm=$('#tapmode');tm.style.display='block';tm.textContent='Tap the map where the '+({rc:'committee boat',pin:'buoy',mrduja:'Mrduja target'}[m]||m)+' is. Tap here to cancel.';tm.onclick=()=>{tapMode=null;tm.style.display='none';sheet(shPrev)};shPrev=sheetState();sheet('peek')}
-map.on('click',e=>{if(!tapMode)return;const p=[e.latlng.lat,e.latlng.lng];S[tapMode]=p;if(tapMode==='rc'||tapMode==='pin')S.guessLine=false;tapMode=null;$('#tapmode').style.display='none';save();drawMarks();sheet(shPrev)});
+map.on('click',e=>{if(!tapMode)return;const p=[e.latlng.lat,e.latlng.lng];S[tapMode]=p;if(tapMode==='rc'||tapMode==='pin'){S.guessLine=false;stale('The line moved.')}tapMode=null;$('#tapmode').style.display='none';save();drawMarks();sheet(shPrev)});
 
 // ---------- GPS ----------
 let gps=null,gpsHist=[],watchId=null;
@@ -542,8 +544,8 @@ function pingEnd(which){startGPS();if(pinning)return;pinning={which,fixes:[],t0:
    if(!use.length){const best=fx.sort((a,b)=>a.acc-b.acc)[0];if(!best){st.textContent='No GPS fixes came in. Check that location is allowed.';return}
     if(!confirm(`No fixes better than ±10 m (best ±${best.acc.toFixed(0)} m). Use it anyway?`)){st.textContent='Cancelled';return}use=[best]}
    let sw=0,la=0,lo=0;for(const f of use){const w=1/(f.acc*f.acc);sw+=w;la+=f.la*w;lo+=f.lo*w}
-   const est=Math.sqrt(1/sw);S[which]=[la/sw,lo/sw];S.guessLine=false;save();drawMarks();st.textContent=`Pinned the ${nmE} from ${use.length} fixes, to about ±${Math.max(est,1).toFixed(1)} m.`;beep(880,.15)}},250)}
-function swapEnds(){[S.rc,S.pin]=[S.pin,S.rc];save();drawMarks()}
+   const est=Math.sqrt(1/sw);S[which]=[la/sw,lo/sw];S.guessLine=false;save();stale('The line moved.');drawMarks();st.textContent=`Pinned the ${nmE} from ${use.length} fixes, to about ±${Math.max(est,1).toFixed(1)} m.`;beep(880,.15)}},250)}
+function swapEnds(){[S.rc,S.pin]=[S.pin,S.rc];save();stale('The line changed.');drawMarks()}
 
 // ---------- LINE MATH ----------
 function xy(p,o){return [(p[1]-o[1])*MLON,(p[0]-o[0])*MLAT]}
@@ -564,8 +566,8 @@ function updLive(){if(!gps)return;const g=lineGeom();const b=xy([gps.la,gps.lo],
  $('#livesub').innerHTML=`You are ${where}. Boat ${distM([gps.la,gps.lo],g.R).toFixed(0)} m, buoy ${distM([gps.la,gps.lo],g.P).toFixed(0)} m${SUGG?`, best spot ${distM([gps.la,gps.lo],SUGG).toFixed(0)} m at ${brgOf([gps.la,gps.lo],SUGG).toFixed(0)}°`:''}.`}
 
 // ---------- WIND AT START ----------
-function setTWD(v,src){S.twd=norm(v);S.twdSrc=src;save();$('#twd').value=Math.round(S.twd);$('#twdsrc').textContent='Using wind from '+src+'.';updLine()}
-function twdFromForecast(){const F=FC.blend;if(!F)return;const m=lineMid();const [s,d]=toSD(...windPt(F,m[0],m[1],S.startMs));S.tws=+(s*S.wf).toFixed(1);$('#tws').value=S.tws;setTWD(d,'the forecast at '+fmtT(S.startMs))}
+function setTWD(v,src,fc){const ch=S.twd==null||Math.abs(adiff(norm(v),S.twd))>2;S.twd=norm(v);S.twdSrc=src;S.measured=!fc;save();if(!fc&&ch)stale('The wind changed.');$('#twd').value=Math.round(S.twd);$('#twdsrc').textContent='Using wind from '+src+'.';$('#windstate').textContent=fc?'Using the forecast wind until you measure':`Using your measured wind, ${Math.round(S.twd)}°`;updLine()}
+function twdFromForecast(){const F=FC.blend;if(!F)return;const m=lineMid();const [s,d]=toSD(...windPt(F,m[0],m[1],S.startMs));S.tws=+(s*S.wf).toFixed(1);$('#tws').value=S.tws;setTWD(d,'the forecast at '+fmtT(S.startMs),true)}
 function recTack(w){if(!gps||gps.cog==null){alert('Need a GPS COG. Sail steady close-hauled for about 10 s first.');return}S['tack'+w]=gps.cog;save();
  if(S.tackS!=null&&S.tackP!=null){const a=S.tackS*D2R,b=S.tackP*D2R;const m=norm(Math.atan2(Math.sin(a)+Math.sin(b),Math.cos(a)+Math.cos(b))/D2R);const ta=Math.abs(adiff(S.tackS,S.tackP));
   setTWD(m,`tacks: stbd ${S.tackS.toFixed(0)}° port ${S.tackP.toFixed(0)}°, tacking angle ${ta.toFixed(0)}°`)}else $('#twdsrc').textContent=`Recorded ${w==='S'?'starboard':'port'} ${gps.cog.toFixed(0)}°, now do the other tack`}
@@ -576,6 +578,13 @@ function compassWind(){if(hdg==null){alert('Start the compass first');return}set
 
 // ---------- START SUGGESTION ----------
 let SUGG=null;
+function stale(why){if(SUGG){SUGG=null;$('#sugg').innerHTML=`<p class="mut"><b>${why}</b> Tap Find the best spot again to update it and the plan.</p>`}planNote()}
+function planFrom(){if(Date.now()<S.startMs)return {from:SUGG||lineMid(),t0:S.startMs,idx:0,txt:SUGG?'Plans from the best spot on your line at the gun.':(S.guessLine?'Plans from the middle of a guessed line. Pin the line and find the best spot on the Start tab.':'Plans from the middle of your line. Find the best spot on the Start tab to plan from there.')};
+ if(gps)return {from:[gps.la,gps.lo],t0:Date.now(),idx:S.rounded?1:0,txt:`The race has started, so this plans from where you are now, heading to ${S.rounded?'Split':'Mrduja'}.`};
+ return {from:lineMid(),t0:S.startMs,idx:0,txt:'The race has started but there is no GPS fix, so this plans from the start line. Turn on GPS to plan from where you are.'}}
+function planNote(){const p=$('#planfrom');if(p)p.textContent=planFrom().txt}
+function planSmart(){const p=planFrom();runAll(p.from,p.t0,p.idx)}
+setInterval(planNote,30000);
 async function suggestStart(){if(!FC.blend){alert('The forecasts are still loading.');return}const box=$('#sugg');box.innerHTML='<p class="mut">Testing 11 spots along the line in every model…</p>';
  const K=10,keys=['blend',...MODELS.map(m=>m[0]).filter(k=>FC[k]&&S.models[k])];const T=makeTarget(S.mrduja,S.round);const res={};
  for(const k of keys){res[k]=[];for(let i=0;i<=K;i++){await sleep(1);const f=i/K;const p=[S.pin[0]+(S.rc[0]-S.pin[0])*f,S.pin[1]+(S.rc[1]-S.pin[1])*f];const R=route(FC[k],p,S.startMs,T);res[k].push(R?R.eta:NaN)}
@@ -585,8 +594,8 @@ async function suggestStart(){if(!FC.blend){alert('The forecasts are still loadi
  const mxs=Math.max(...score)||1;const spread=mxs-Math.min(...score);
  let h=`<div class="fav"><b>${best===0?'Start at the buoy end':best===K?'Start at the committee boat end':`Start ${Math.round(f*100)}% of the way from buoy to boat`}</b><span class="mut">${spread<20?'The whole line is within 20 seconds, so clear air and speed off the line matter more.':`Starting at the worst spot costs about ${Math.round(spread)} s by Mrduja.`} The green ring on the map marks the spot.</span></div><table>`;
  for(let i=0;i<=K;i++)h+=`<tr${i===best?' style="font-weight:700"':''}><td style="text-align:left;width:64px">${i===0?'Buoy':i===K?'Boat':i*10+'%'}</td><td><div class="bar" style="width:${Math.max(2,score[i]/mxs*100)}%;background:${i===best?'var(--go)':'var(--ink)'}"></div></td><td style="width:52px">+${score[i].toFixed(0)} s</td></tr>`;
- h+=`</table><p class="mut">Each row shows the average time lost compared with each model's own best spot. ${S.useOvr&&S.twd!=null?'This includes your measured wind.':'Measure the wind at the line to sharpen this.'}</p>`;
- box.innerHTML=h;drawMarks()}
+ h+=`</table><p class="mut">Each row shows the average time lost compared with each model's own best spot. ${S.measured?'This uses your measured wind.':'This uses the forecast wind. Measuring it at the line makes it sharper.'}</p>`;
+ box.innerHTML=h+'<p class="mut"><b>The race plan on the Route tab now starts from this spot.</b></p>';drawMarks();planNote();runAll(SUGG,S.startMs,0)}
 
 // ---------- TIMER ----------
 let actx=null,lastBeep=null;
@@ -611,8 +620,9 @@ let WPT=0;function windTable(){$('#wpts').innerHTML=KEYPTS.map((k,i)=>`<button c
   h+='</tr>'}
  $('#wtab').innerHTML=h}
 // ALADIN
-function alDefault(){const now=Date.now();const run=Math.floor((now-3.5*36e5)/(6*36e5))*6*36e5;return Math.max(0,Math.min(72,Math.round((S.startMs-run)/36e5)))}
-function alSet(i){i=Math.max(0,Math.min(72,i));$('#alr').value=i;$('#alix').textContent=String(i).padStart(2,'0');$('#alimg').src=`https://prognoza.hr/aladinHR/web_uv10_SPLI_${String(i).padStart(2,'0')}.png?v=${Math.floor(Date.now()/36e5)}`}
+function alRun(){return Math.floor((Date.now()-3*36e5)/(6*36e5))*6*36e5}
+function alDefault(){return Math.max(0,Math.min(72,Math.round((S.startMs-alRun())/36e5)))}
+function alSet(i){i=Math.max(0,Math.min(72,i));$('#alr').value=i;$('#alix').textContent=new Date(alRun()+i*36e5).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'});$('#alimg').src=`https://prognoza.hr/aladinHR/web_uv10_SPLI_${String(i).padStart(2,'0')}.png?v=${Math.floor(Date.now()/36e5)}`}
 function alStep(d){alSet(+$('#alr').value+d)}
 function windy(){$('#wy').src=`https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=kt&zoom=10&overlay=wind&product=${$('#wyprod').value}&level=surface&lat=43.42&lon=16.42&detailLat=43.40&detailLon=16.41&detail=true`}
 
@@ -623,7 +633,7 @@ function hist(){let h='';const nm=['Start','Šolta side','Brač side','Vrata'];
  $('#histtab').innerHTML=h;$('#histnotes').innerHTML=NOTES}
 
 // ---------- SETUP UI ----------
-function setupUI(){$('#rounded').checked=!!S.rounded;$('#perf').value=S.perf;$('#wf').value=S.wf;$('#gen').checked=S.gen;$('#rrad').value=S.round;$('#useovr').checked=S.useOvr;
+function setupUI(){$('#rounded').checked=!!S.rounded;$('#perf').value=S.perf;$('#wf').value=S.wf;$('#gen').checked=S.gen;$('#rrad').value=S.round;
  if(S.twd!=null){$('#twd').value=Math.round(S.twd);$('#twdsrc').textContent='Source: '+S.twdSrc}if(S.tws!=null)$('#tws').value=S.tws;
  $('#modsel').innerHTML=MODELS.map(m=>`<label class="chk"><input type="checkbox" ${S.models[m[0]]?'checked':''} onchange="S.models['${m[0]}']=this.checked;save();if(RAW){FC=fcFromRaw(RAW);afterFC()}"><span class="dot" style="background:${m[3]}"></span><span>${m[2]}<br><span class="mut">weight ${m[4]} in the blend</span></span></label>`).join('');
  let h=`<tr><th>TWS\\TWA</th>${PTWA.slice(2).map(a=>`<th>${a}</th>`).join('')}</tr>`;
