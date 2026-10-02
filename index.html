@@ -556,6 +556,9 @@ function updLine(){const g=lineGeom();let h='';
   const twaCourse=Math.abs(adiff(norm(Math.atan2(g.nx,g.ny)/D2R),S.twd));
   const fav=Math.abs(adv)<3?'The line is square':adv>0?`Committee boat end is ${Math.abs(adv).toFixed(0)} m ahead`:`Buoy end is ${Math.abs(adv).toFixed(0)} m ahead`;
   h+=`<div class="fav"><b>${fav}</b><span class="mut">${Math.abs(bias).toFixed(0)}° bias, wind from ${S.twd.toFixed(0)}° (${S.twdSrc}). ${twaCourse>70?'It is a reaching start, so being near your route and in clear air matters more than the bias.':'It is an upwind start, so the favoured end gains this much.'}</span></div>`}
+ {const dR=distM(g.R,S.mrduja),dP=distM(g.P,S.mrduja),df=dR-dP;
+  h+=`<div class="inst" style="margin:8px 0"><div><label>Committee boat to Mrduja</label><div class="big">${(dR/1852).toFixed(2)}<small>nm</small></div><span class="mut">${brgOf(g.R,S.mrduja).toFixed(0)}°</span></div><div><label>Buoy to Mrduja</label><div class="big">${(dP/1852).toFixed(2)}<small>nm</small></div><span class="mut">${brgOf(g.P,S.mrduja).toFixed(0)}°</span></div></div>
+  <p class="mut" style="margin:0">${Math.abs(df)<5?'Both ends are the same distance from Mrduja.':`The ${df>0?'buoy':'committee boat'} end is <b>${Math.abs(df).toFixed(0)} m closer</b> to Mrduja in a straight line.`} Straight-line only. The best-spot search below also takes the wind into account.</p>`}
  h+=`<p class="mut" style="margin:4px 0">${S.guessLine?'<b class="over">This line is a guess. Pin both ends when you get there.</b> ':''}The line is ${g.len.toFixed(0)} m long, about ${(g.len/11.7).toFixed(0)} boat lengths.</p>`;
  $('#lineinfo').innerHTML=h}
 function updLive(){if(!gps)return;const g=lineGeom();const b=xy([gps.la,gps.lo],g.P);const d=b[0]*g.nx+b[1]*g.ny,along=b[0]*g.ux+b[1]*g.uy;
@@ -582,7 +585,7 @@ function stale(why){if(SUGG){SUGG=null;$('#sugg').innerHTML=`<p class="mut"><b>$
 function planFrom(){if(Date.now()<S.startMs)return {from:SUGG||lineMid(),t0:S.startMs,idx:0,txt:SUGG?'Plans from the best spot on your line at the gun.':(S.guessLine?'Plans from the middle of a guessed line. Pin the line and find the best spot on the Start tab.':'Plans from the middle of your line. Find the best spot on the Start tab to plan from there.')};
  if(gps)return {from:[gps.la,gps.lo],t0:Date.now(),idx:S.rounded?1:0,txt:`The race has started, so this plans from where you are now, heading to ${S.rounded?'Split':'Mrduja'}.`};
  return {from:lineMid(),t0:S.startMs,idx:0,txt:'The race has started but there is no GPS fix, so this plans from the start line. Turn on GPS to plan from where you are.'}}
-function planNote(){const p=$('#planfrom');if(p)p.textContent=planFrom().txt}
+function planNote(){const p=$('#planfrom');if(p)p.textContent=`Start time ${new Date(S.startMs).toLocaleTimeString('hr-HR')}, taken from the countdown on the Start tab. `+planFrom().txt}
 function planSmart(){const p=planFrom();runAll(p.from,p.t0,p.idx)}
 setInterval(planNote,30000);
 async function suggestStart(){if(!FC.blend){alert('The forecasts are still loading.');return}const box=$('#sugg');box.innerHTML='<p class="mut">Testing 11 spots along the line in every model…</p>';
