@@ -299,11 +299,11 @@ const MCOL={blend:'#000'};MODELS.forEach(m=>MCOL[m[0]]=m[3]);
 const MNAME={blend:'BLEND (weighted)'};MODELS.forEach(m=>MNAME[m[0]]=m[2]);
 
 // ---------- STATE ----------
-const DEF={rc:[43.4962,16.4335],pin:[43.4968,16.4215],guessLine:true,mark1:[43.4985,16.4262],finish:[43.5022,16.4282],mrduja:[43.3385,16.4100],
+const DEF={rc:[43.4968,16.4215],pin:[43.4962,16.4335],guessLine:true,mark1:[43.4985,16.4262],finish:[43.5022,16.4282],mrduja:[43.3385,16.4100],
  startMs:new Date('2026-10-03T11:00:00').getTime(),perf:1,wf:1,gen:true,round:450,decl:5,twd:null,tws:null,twdSrc:'',useOvr:false,
  tackS:null,tackP:null,models:Object.fromEntries(MODELS.map(m=>[m[0],true])),disp:'blend'};
 let S=DEF;try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('mrd')||'{}'))}catch(e){}
-S.mark1=DEF.mark1;S.finish=DEF.finish;
+S.mark1=DEF.mark1;S.finish=DEF.finish;if(S.guessLine){S.rc=DEF.rc;S.pin=DEF.pin}
 function save(){try{localStorage.setItem('mrd',JSON.stringify(S))}catch(e){}}
 
 // ---------- MASK ----------
