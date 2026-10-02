@@ -50,7 +50,7 @@ img.al{width:100%;border:1px solid var(--line);border-radius:6px}
 </style></head>
 <body>
 <div id="map"></div>
-<div id="tapmode"></div>
+<div id="tapmode"></div><div id="gpschip" onclick="startGPS()" style="position:fixed;top:8px;left:8px;z-index:4;background:#ffcdd2;padding:6px 9px;border-radius:8px;font:700 13px sans-serif">GPS off (tap)</div>
 <div id="mapbtns">
   <button onclick="toggleBig()">⤢ map</button>
   <button onclick="centerMe()">◎ me</button>
@@ -64,7 +64,7 @@ img.al{width:100%;border:1px solid var(--line);border-radius:6px}
   <div class="row">
     <button class="b p" onclick="runAll()">▶ Route race (all models)</button>
     <button class="b" onclick="routeFromMe()">▶ Route from my GPS now</button>
-    <select id="nextmark"><option value="0">next: Mrduja</option><option value="1">next: Mark 1</option><option value="2">next: Finish</option></select>
+    <label class="row mut"><input type="checkbox" id="rounded" onchange="S.rounded=this.checked;save()"> already rounded Mrduja (auto-ticks when GPS passes it)</label>
   </div>
   <div id="fcstatus" class="mut"></div>
   <div id="routeout"></div>
@@ -89,7 +89,12 @@ img.al{width:100%;border:1px solid var(--line);border-radius:6px}
   <div class="card">
     <div class="row"><b>GPS</b> <span id="gpsst" class="mut">off</span> <button class="b" onclick="startGPS()">start GPS</button></div>
     <div class="row"><span>SOG <span class="big" id="sog">-</span>kn</span>&nbsp;&nbsp;<span>COG <span class="big" id="cog">-</span>°</span></div>
-    <div id="precise" class="badc" style="display:none">Accuracy is worse than 100 m, so Precise Location is probably off. Go to Settings → Privacy &amp; Security → Location Services → Safari Websites → While Using, and turn Precise Location ON.</div>
+    <div id="gpshelp" class="badc" style="display:none">Location was <b>denied without a popup</b>, so iOS is blocking it. Fix it like this:<ol>
+<li>Open this page in <b>Safari itself</b>, not inside Messages, WhatsApp, Gmail or Slack. In-app browsers silently deny GPS.</li>
+<li>Go to Settings → Privacy &amp; Security → <b>Location Services ON</b> → <b>Safari Websites</b> → "While Using the App" or "Ask Next Time", and turn <b>Precise Location ON</b>.</li>
+<li>In Safari, tap <b>aA</b> in the address bar → Website Settings → <b>Location: Allow</b>.</li>
+<li>Reload the page and tap the GPS chip.</li></ol></div>
+  <div id="precise" class="badc" style="display:none">Accuracy is worse than 100 m, so Precise Location is probably off. Go to Settings → Privacy &amp; Security → Location Services → Safari Websites → While Using, and turn Precise Location ON.</div>
   </div>
   <div class="card">
     <b>Start line</b> <span class="mut">(pin when you are right next to it, phone at the bow; averages 10 s and ignores fixes worse than ±10 m)</span>
@@ -109,8 +114,8 @@ img.al{width:100%;border:1px solid var(--line);border-radius:6px}
     <b>Live to the line</b>
     <div id="live" class="mut">Start the GPS and set both ends.</div>
   </div>
-  <div class="card">
-    <b>Wind at start (for bias)</b>
+  <details class="card">
+    <summary><b>Wind at start (for line bias)</b> <span class="mut">optional, defaults to the forecast</span></summary>
     <div class="row">TWD <input type="number" id="twd" min="0" max="359" onchange="setTWD(+this.value,'manual')">° TWS <input type="number" id="tws" min="0" max="40" step="0.5" onchange="S.tws=+this.value;save();updLine()">kn
     <button class="b" onclick="twdFromForecast()">from forecast</button></div>
     <div class="row">
@@ -123,7 +128,7 @@ img.al{width:100%;border:1px solid var(--line);border-radius:6px}
     </div>
     <div id="twdsrc" class="mut"></div>
     <label class="row"><input type="checkbox" id="useovr" onchange="S.useOvr=this.checked;save()"> use this measured wind in the router for the first ~45 min near the start</label>
-  </div>
+  </details>
   <div class="card">
     <button class="b p" onclick="suggestStart()">🎯 Suggest where on the line to start</button>
     <div id="sugg"></div>
@@ -167,18 +172,13 @@ img.al{width:100%;border:1px solid var(--line);border-radius:6px}
   <label class="row"><input type="checkbox" id="gen" onchange="S.gen=this.checked;save()"> gennaker available (TWA 75–165°, TWS ≤ ~17 kn)</label>
   <div class="mut">The polar is estimated from ORC data for the Bavaria 38 Cruiser, cut about 5% for dacron and a cruising setup. If you're slower than target in real conditions, drop Performance to 0.9.</div>
   <div class="scroll"><table id="poltab"></table></div>
-  <h3>Course</h3>
-  <div class="mut">SPLIT – around MRDUJA – mark 1 (Split) – finish (below Sustipan). The sailing instructions weren't online when this was built, so check the SI and set mark 1 and the finish.</div>
-  <div class="row">
-    <button class="b" onclick="setTap('mark1')">tap map: Mark 1</button>
-    <button class="b" onclick="S.mark1=null;save();drawMarks()">clear Mark 1</button>
-    <button class="b" onclick="setTap('finish')">tap map: Finish</button>
-    <button class="b" onclick="S.finish=null;save();drawMarks()">finish = start line</button>
-    <button class="b" onclick="setTap('mrduja')">move Mrduja target</button>
-  </div>
+  <h3>Course (fixed)</h3>
+  <div class="mut">Split start → round Mrduja → Mark 1 (offset mark about 300 m S of Sustipan, leave to starboard) → finish off JK Labud. "Oznaka 1" in the NoR is this Split mark, not Mrduja. Positions are from the JK Labud SI template, and the router barely cares about a few hundred metres here.</div>
+  <details class="card"><summary><b>Advanced</b></summary>
   <div class="row">Mrduja rounding radius <input type="number" id="rrad" step="50" onchange="S.round=+this.value;save();drawMarks()"> m</div>
   <h3>Models used</h3>
   <div id="modsel"></div>
+  </details>
   <h3>Reset</h3>
   <button class="b" onclick="if(confirm('Reset all pins and settings?')){localStorage.removeItem('mrd');location.reload()}">reset everything</button>
   <p class="mut">iPhone: Share → Add to Home Screen. Keep the app in front during the start, because GPS stops when the screen locks. The screen stays awake while the app is open (Wake Lock).</p>
@@ -223,6 +223,7 @@ const DEF={rc:[43.4962,16.4335],pin:[43.4968,16.4215],guessLine:true,mark1:[43.4
  startMs:new Date('2026-10-03T11:00:00').getTime(),perf:1,wf:1,gen:true,round:450,decl:5,twd:null,tws:null,twdSrc:'',useOvr:false,
  tackS:null,tackP:null,models:Object.fromEntries(MODELS.map(m=>[m[0],true])),disp:'blend'};
 let S=DEF;try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('mrd')||'{}'))}catch(e){}
+S.mark1=DEF.mark1;S.finish=DEF.finish;
 function save(){try{localStorage.setItem('mrd',JSON.stringify(S))}catch(e){}}
 
 // ---------- MASK ----------
@@ -326,7 +327,7 @@ async function fetchAll(force){
  if(!Object.keys(raw.m).length){if(RAW){FC=fcFromRaw(RAW);st.textContent='OFFLINE, using cached forecast from '+new Date(RAW.ts).toLocaleString('hr-HR');afterFC()}else st.textContent='Fetch failed and there is no cache.';return}
  RAW=raw;try{localStorage.setItem('mrdfc',JSON.stringify(raw))}catch(e){}
  FC=fcFromRaw(raw);st.textContent='Forecast fetched '+fmtT(raw.ts)+(bad.length?' · failed: '+bad.join(', '):'');afterFC()}
-function afterFC(){fillDisp();drawWind();windTable()}
+function afterFC(){fillDisp();drawWind();windTable();if(S.twd==null||S.twdSrc.startsWith('blend'))twdFromForecast()}
 
 // ---------- ROUTER ----------
 function makeTarget(pt,rad){const T=new Uint8Array(G.N);let any=0;for(let n=0;n<G.N;n++)if(VALID[n]&&distM([nLa(n),nLo(n)],pt)<=rad){T[n]=1;any=1}
@@ -383,7 +384,7 @@ function renderRouteTable(from,t0,legs){
  const v=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${k}: <b>${n}</b>`).join(' · ')||'-';
  h=`<div class="card"><b>Side vote, to Mrduja:</b> ${v(votes.out)}<br><b>Side vote, coming back:</b> ${v(votes.back)}</div>`+h;
  $('#routeout').innerHTML=h}
-function routeFromMe(){if(!gps){alert('Start the GPS on the Start tab');return}runAll([gps.la,gps.lo],Date.now(),+$('#nextmark').value)}
+function routeFromMe(){if(!gps){startGPS();alert('Waiting for GPS. Try again in a few seconds.');return}runAll([gps.la,gps.lo],Date.now(),S.rounded?1:0)}
 
 // ---------- MAP ----------
 const map=L.map('map',{zoomControl:false,attributionControl:false}).setView([43.42,16.42],11);
@@ -424,12 +425,15 @@ map.on('click',e=>{if(!tapMode)return;const p=[e.latlng.lat,e.latlng.lng];S[tapM
 
 // ---------- GPS ----------
 let gps=null,gpsHist=[],watchId=null;
+function gpsErr(e){if(e.code!==1&&gps)return;if(e.code===1){watchId!=null&&navigator.geolocation.clearWatch(watchId);watchId=null}$('#gpsst').textContent='GPS error: '+e.message;$('#gpschip').textContent=e.code===1?'GPS DENIED (tap for help)':'GPS error (tap)';$('#gpschip').style.background='#ffcdd2';
+ if(e.code===1){$('#gpshelp').style.display='block';$('#gpschip').onclick=()=>{document.querySelector('nav button[data-t=start]').click();startGPS()}}}
 function startGPS(){if(watchId!=null)return;if(!navigator.geolocation){alert('No geolocation');return}
- watchId=navigator.geolocation.watchPosition(onPos,e=>{$('#gpsst').textContent='GPS error: '+e.message},{enableHighAccuracy:true,maximumAge:0,timeout:30000});wake()}
+ watchId=navigator.geolocation.watchPosition(onPos,gpsErr,{enableHighAccuracy:true,maximumAge:0,timeout:30000});wake()}
 function onPos(p){const c=p.coords;const now=p.timestamp||Date.now();gpsHist.push({la:c.latitude,lo:c.longitude,acc:c.accuracy,t:now});gpsHist=gpsHist.filter(x=>now-x.t<20000);
  let sog=c.speed!=null&&c.speed>=0?c.speed/KN:null,cog=c.heading!=null&&!isNaN(c.heading)&&c.speed>0.3?c.heading:null;
  const old=gpsHist.find(x=>now-x.t<=6000);if(old&&now-old.t>2500){const d=distM([old.la,old.lo],[c.latitude,c.longitude]);if(sog==null)sog=d/((now-old.t)/1000)/KN;if(cog==null&&d>4)cog=brgOf([old.la,old.lo],[c.latitude,c.longitude])}
- gps={la:c.latitude,lo:c.longitude,acc:c.accuracy,sog,cog,t:now};
+ gps={la:c.latitude,lo:c.longitude,acc:c.accuracy,sog,cog,t:now};$('#gpschip').textContent='GPS ±'+c.accuracy.toFixed(0)+'m';$('#gpschip').style.background=c.accuracy<=10?'#c8e6c9':c.accuracy<=50?'#fff3cd':'#ffcdd2';$('#gpshelp').style.display='none';
+ if(!S.rounded&&distM([gps.la,gps.lo],S.mrduja)<700){S.rounded=true;save();$('#rounded').checked=true}
  $('#gpsst').textContent=`±${c.accuracy.toFixed(0)} m · ${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`;$('#precise').style.display=c.accuracy>100?'block':'none';
  $('#sog').textContent=sog!=null?sog.toFixed(1):'-';$('#cog').textContent=cog!=null?Math.round(cog):'-';
  if(!meMarker){meMarker=L.circleMarker([gps.la,gps.lo],{radius:7,color:'#fff',weight:3,fillColor:'#2962ff',fillOpacity:1}).addTo(map);meAcc=L.circle([gps.la,gps.lo],{radius:c.accuracy,weight:1,fillOpacity:.08}).addTo(map)}
@@ -527,7 +531,7 @@ function hist(){let h='';const nm=['Start','Šolta side','Brač side','Vrata'];
  $('#histtab').innerHTML=h;$('#histnotes').innerHTML=NOTES}
 
 // ---------- SETUP UI ----------
-function setupUI(){$('#perf').value=S.perf;$('#wf').value=S.wf;$('#gen').checked=S.gen;$('#rrad').value=S.round;$('#useovr').checked=S.useOvr;
+function setupUI(){$('#rounded').checked=!!S.rounded;$('#perf').value=S.perf;$('#wf').value=S.wf;$('#gen').checked=S.gen;$('#rrad').value=S.round;$('#useovr').checked=S.useOvr;
  if(S.twd!=null){$('#twd').value=Math.round(S.twd);$('#twdsrc').textContent='Source: '+S.twdSrc}if(S.tws!=null)$('#tws').value=S.tws;
  $('#modsel').innerHTML=MODELS.map(m=>`<label class="row"><input type="checkbox" ${S.models[m[0]]?'checked':''} onchange="S.models['${m[0]}']=this.checked;save();if(RAW){FC=fcFromRaw(RAW);afterFC()}"><span class="dot" style="background:${m[3]}"></span>${m[2]} <span class="mut">(${m[1]}, blend weight ${m[4]})</span></label>`).join('');
  let h=`<tr><th>TWS\\TWA</th>${PTWA.slice(2).map(a=>`<th>${a}</th>`).join('')}</tr>`;
@@ -537,7 +541,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.query
  if(b.dataset.t==='wind'){windTable();if(!$('#alimg').src)alSet(alDefault());if(!$('#wy').src)windy()}if(b.dataset.t==='hist')hist();if(document.body.classList.contains('bigmap'))toggleBig()});
 // wake lock
 let wl=null;async function wake(){try{if('wakeLock'in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>wl=null)}}catch(e){}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});document.addEventListener('click',wake,{once:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});document.addEventListener('click',()=>{wake();startGPS()},{once:true});
 // tide initial slider to start
 setupUI();drawMarks();fetchAll(false);
 try{navigator.permissions&&navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state==='granted')startGPS()})}catch(e){}
